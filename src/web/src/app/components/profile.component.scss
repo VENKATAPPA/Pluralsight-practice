@@ -1,0 +1,43 @@
+.profile-container {
+  max-width: 600px;
+  margin: 20px auto;
+}
+
+a {
+  margin-bottom: 15px;
+  display: inline-block;
+}
+
+.profile {
+  border: 1px solid #ddd;
+  padding: 20px;
+  border-radius: 5px;
+}
+
+.profile h1 {
+  margin: 0;
+}
+
+.username {
+  color: #666;
+  margin-top: 5px;
+}
+
+.bio {
+  margin-top: 10px;
+  line-height: 1.5;
+}
+
+.joined {
+  color: #999;
+  font-size: 0.9em;
+}
+
+button {
+  padding: 10px 20px;
+  background: blue;
+  color: white;
+  border: none;
+  cursor: pointer;
+  margin-top: 10px;
+}

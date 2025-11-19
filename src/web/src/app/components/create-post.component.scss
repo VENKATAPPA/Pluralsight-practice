@@ -1,0 +1,27 @@
+.create-post-container {
+  max-width: 600px;
+  margin: 50px auto;
+}
+
+form div {
+  margin-bottom: 15px;
+}
+
+textarea,
+input {
+  width: 100%;
+  padding: 8px;
+}
+
+button {
+  padding: 10px;
+  background: blue;
+  color: white;
+  border: none;
+  cursor: pointer;
+}
+
+.error {
+  color: red;
+  margin-top: 10px;
+}
