@@ -1,0 +1,46 @@
+# .NET
+bin/
+obj/
+*.dll
+*.exe
+*.pdb
+*.user
+*.aps
+*.psp
+*.suo
+.vs/
+.vscode/
+*.csproj.user
+*.csproj.nuget.*
+appsettings.*.json
+!appsettings.json
+
+# Angular
+node_modules/
+dist/
+.angular/
+.angular/cache/
+npm-debug.log
+yarn-error.log
+*.log
+
+# IDEs
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Miscellaneous
+*.tmp
+temp/
+coverage/
