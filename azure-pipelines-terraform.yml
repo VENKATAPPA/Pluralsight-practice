@@ -1,0 +1,59 @@
+trigger:
+  branches:
+    include:
+      - main
+  paths:
+    include:
+      - infra/terraform/*
+
+variables:
+- group: terraform-secrets
+
+pool:
+  name: local-win-pool   # your self-hosted agent pool
+
+stages:
+- stage: Terraform
+  displayName: "Provision Infra with Terraform"
+  jobs:
+  - job: TerraformJob
+    displayName: "Terraform Init / Plan / Apply"
+    steps:
+    - checkout: self
+
+    # Install Terraform on the agent
+    - task: TerraformInstaller@0
+      displayName: "Install Terraform"
+      inputs:
+        terraformVersion: 'latest'
+
+    - script: |
+        echo ">>> LOGIN TO AZURE (DEVICE CODE)"
+        az login --use-device-code
+
+        echo ">>> Set subscription if needed"
+        # az account set --subscription "P8-Real Hands-On Labs"
+        # or: az account set --subscription "Free Trial"
+
+        cd infra/terraform
+
+        echo ">>> Terraform init"
+        terraform init
+
+        echo ">>> Terraform plan"
+        terraform plan `
+          -var "resource_group_name=pspractice-rg" `
+          -var "location=eastus" `
+          -var "base_name=pspractice" `
+          -var "vm_admin_username=vmadmin" `
+          -var "vm_admin_password=$(vm_admin_password)" `
+          -var "sql_admin_login=$(sql_admin_login)" `
+          -var "sql_admin_password=$(sql_admin_password)" `
+          -out tfplan
+
+        echo ">>> Terraform apply"
+        terraform apply -auto-approve tfplan
+
+        echo ">>> Terraform outputs"
+        terraform output
+      displayName: "Run Terraform"
