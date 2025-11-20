@@ -2,28 +2,82 @@ trigger:
   branches:
     include:
       - main
-  paths:
-    include:
-      - src/api/*
-      - src/web/*
-
-pool:
-  vmImage: ubuntu-latest
 
 variables:
-- group: acr-secrets    # ACR_LOGIN_SERVER, ACR_USERNAME, ACR_PASSWORD
+  acrName: "pspracticeacr"
+  acrLoginServer: "pspracticeacr.azurecr.io"
+  aksResourceGroup: "pspractice-rg"
+  aksName: "pspractice-aks"
+  imageTag: "$(Build.BuildId)"
 
-steps:
-- task: DockerInstaller@0
-  displayName: Install Docker
+stages:
 
-- script: |
-    echo $(ACR_PASSWORD) | docker login $(ACR_LOGIN_SERVER) \
-      -u $(ACR_USERNAME) --password-stdin
+# =============================
+# 1) BUILD & PUSH DOCKER IMAGES
+# =============================
+- stage: Build
+  displayName: "Build & Push Docker Images"
+  jobs:
+  - job: BuildJob
+    pool:
+      name: local-win-pool
+    steps:
+    - checkout: self
 
-    docker build -t $(ACR_LOGIN_SERVER)/ps-api:$(Build.BuildId) ./src/api
-    docker build -t $(ACR_LOGIN_SERVER)/ps-web:$(Build.BuildId) ./src/web
+    - script: |
+        echo ">>> LOGIN TO AZURE (DEVICE CODE)"
+        az login --use-device-code
 
-    docker push $(ACR_LOGIN_SERVER)/ps-api:$(Build.BuildId)
-    docker push $(ACR_LOGIN_SERVER)/ps-web:$(Build.BuildId)
-  displayName: Build and Push Images
+        echo ">>> LOGIN TO ACR"
+        az acr login --name $(acrName)
+
+        echo ">>> BUILD API"
+        docker build -f docker/api.Dockerfile -t $(acrLoginServer)/ps-api:$(imageTag) .
+
+        echo ">>> PUSH API"
+        docker push $(acrLoginServer)/ps-api:$(imageTag)
+
+        echo ">>> BUILD WEB"
+        docker build -f docker/web.Dockerfile -t $(acrLoginServer)/ps-web:$(imageTag) .
+
+        echo ">>> PUSH WEB"
+        docker push $(acrLoginServer)/ps-web:$(imageTag)
+      displayName: "Build & Push Container Images"
+
+
+# =============================
+# 2) DEPLOY TO AKS
+# =============================
+- stage: Deploy
+  displayName: "Deploy to AKS"
+  dependsOn: Build
+  jobs:
+  - job: DeployJob
+    pool:
+      name: local-win-pool
+    steps:
+    - checkout: self
+
+    - script: |
+        echo ">>> LOGIN TO AZURE (DEVICE CODE)"
+        az login --use-device-code
+
+        echo ">>> GET AKS CREDENTIALS"
+        az aks get-credentials `
+          --resource-group $(aksResourceGroup) `
+          --name $(aksName) `
+          --overwrite-existing
+
+        echo ">>> APPLY K8S MANIFESTS"
+        kubectl apply -f k8s/api-deployment.yaml
+        kubectl apply -f k8s/api-service.yaml
+        kubectl apply -f k8s/web-deployment.yaml
+        kubectl apply -f k8s/web-service.yaml
+
+        echo ">>> UPDATE IMAGES"
+        kubectl set image deployment/api-deployment ps-api=$(acrLoginServer)/ps-api:$(imageTag)
+        kubectl set image deployment/web-deployment social-web=$(acrLoginServer)/ps-web:$(imageTag)
+
+        echo ">>> SHOW SERVICES"
+        kubectl get svc
+      displayName: "Deploy to AKS"
