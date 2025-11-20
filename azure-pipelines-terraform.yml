@@ -10,30 +10,27 @@ variables:
 - group: terraform-secrets
 
 pool:
-  name: local-win-pool   # your self-hosted agent pool
+  name: local-win-pool   # your self-hosted agent
 
 stages:
 - stage: Terraform
   displayName: "Provision Infra with Terraform"
   jobs:
   - job: TerraformJob
-    displayName: "Terraform Init / Plan / Apply"
+    displayName: "Run Terraform"
     steps:
     - checkout: self
 
-    # Install Terraform on the agent
-    - task: TerraformInstaller@0
-      displayName: "Install Terraform"
-      inputs:
-        terraformVersion: 'latest'
-
     - script: |
-        echo ">>> LOGIN TO AZURE (DEVICE CODE)"
+        echo ">>> Checking Terraform version"
+        terraform -version
+
+        echo ">>> Azure login (device code)"
         az login --use-device-code
 
-        echo ">>> Set subscription if needed"
+        echo ">>> Setting subscription"
+        # az account set --subscription "Free Trial"
         # az account set --subscription "P8-Real Hands-On Labs"
-        # or: az account set --subscription "Free Trial"
 
         cd infra/terraform
 
@@ -56,4 +53,4 @@ stages:
 
         echo ">>> Terraform outputs"
         terraform output
-      displayName: "Run Terraform"
+      displayName: "Terraform Apply"
