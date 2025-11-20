@@ -2,28 +2,89 @@ trigger:
   branches:
     include:
       - main
-  paths:
-    include:
-      - src/api/*
-      - src/web/*
 
 pool:
   vmImage: ubuntu-latest
 
 variables:
-- group: acr-secrets    # ACR_LOGIN_SERVER, ACR_USERNAME, ACR_PASSWORD
+  acrLoginServer: "pspracticeacr.azurecr.io"
+  aksResourceGroup: "pspractice-rg"   # update if needed
+  aksName: "pspractice-aks"
+  imageTag: "$(Build.BuildId)"
 
-steps:
-- task: DockerInstaller@0
-  displayName: Install Docker
+stages:
 
-- script: |
-    echo $(ACR_PASSWORD) | docker login $(ACR_LOGIN_SERVER) \
-      -u $(ACR_USERNAME) --password-stdin
+# =====================
+# 1. BUILD & PUSH IMAGES
+# =====================
+- stage: Build
+  displayName: "Build & Push Images"
+  jobs:
+  - job: BuildJob
+    pool:
+      vmImage: ubuntu-latest
 
-    docker build -t $(ACR_LOGIN_SERVER)/ps-api:$(Build.BuildId) ./src/api
-    docker build -t $(ACR_LOGIN_SERVER)/ps-web:$(Build.BuildId) ./src/web
+    steps:
+    - checkout: self
 
-    docker push $(ACR_LOGIN_SERVER)/ps-api:$(Build.BuildId)
-    docker push $(ACR_LOGIN_SERVER)/ps-web:$(Build.BuildId)
-  displayName: Build and Push Images
+    - script: |
+        echo ">>> LOGIN TO AZURE (DEVICE CODE)"
+        az login --use-device-code
+
+        echo ">>> LOGIN TO ACR"
+        az acr login --name pspracticeacr
+
+        echo ">>> BUILD API IMAGE"
+        docker build -f docker/api.Dockerfile -t $(acrLoginServer)/ps-api:$(imageTag) .
+
+        echo ">>> PUSH API IMAGE"
+        docker push $(acrLoginServer)/ps-api:$(imageTag)
+
+        echo ">>> BUILD WEB IMAGE"
+        docker build -f docker/web.Dockerfile -t $(acrLoginServer)/ps-web:$(imageTag) .
+
+        echo ">>> PUSH WEB IMAGE"
+        docker push $(acrLoginServer)/ps-web:$(imageTag)
+      displayName: "Build & Push to ACR"
+
+
+# =====================
+# 2. DEPLOY TO AKS
+# =====================
+- stage: Deploy
+  displayName: "Deploy to AKS"
+  dependsOn: Build
+  jobs:
+  - job: DeployJob
+    pool:
+      vmImage: ubuntu-latest
+
+    steps:
+    - checkout: self
+
+    - script: |
+        echo ">>> LOGIN TO AZURE (DEVICE CODE)"
+        az login --use-device-code
+
+        echo ">>> GET AKS CREDENTIALS"
+        az aks get-credentials \
+          --resource-group $(aksResourceGroup) \
+          --name $(aksName) \
+          --overwrite-existing
+        
+        echo ">>> APPLY DEPLOYMENTS"
+        kubectl apply -f k8s/api-deployment.yaml
+        kubectl apply -f k8s/api-service.yaml
+        kubectl apply -f k8s/web-deployment.yaml
+        kubectl apply -f k8s/web-service.yaml
+
+        echo ">>> UPDATE IMAGES"
+        kubectl set image deployment/api-deployment \
+          ps-api=$(acrLoginServer)/ps-api:$(imageTag)
+
+        kubectl set image deployment/web-deployment \
+          social-web=$(acrLoginServer)/ps-web:$(imageTag)
+
+        echo ">>> SHOW SERVICES"
+        kubectl get svc
+      displayName: "Deploy to AKS"
