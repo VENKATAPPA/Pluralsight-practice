@@ -1,0 +1,42 @@
+trigger:
+  branches:
+    include:
+      - main
+  paths:
+    include:
+      - k8s/*
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+- group: aks-secrets     # AKS_NAME, AKS_RG, ACR_LOGIN_SERVER, sql_connection_string
+
+steps:
+# 1. Run DbUp migrations
+- task: DotNetCoreCLI@2
+  displayName: Run DbUp migrations
+  inputs:
+    command: 'run'
+    projects: 'src/dbup/YourDbUpProject.csproj'   # ⬅ change name
+    arguments: '--connectionString "$(sql_connection_string)"'
+
+# 2. Deploy to AKS
+- task: AzureCLI@2
+  displayName: Deploy to AKS
+  inputs:
+    azureSubscription: 'your-service-connection-name'
+    scriptType: 'bash'
+    scriptLocation: 'inlineScript'
+    inlineScript: |
+      az aks get-credentials \
+        --name $(AKS_NAME) \
+        --resource-group $(AKS_RG) \
+        --overwrite-existing
+
+      # update images or create deployments
+      kubectl set image deployment/api-deployment ps-api=$(ACR_LOGIN_SERVER)/ps-api:$(Build.BuildId) || kubectl apply -f k8s/api-deployment.yaml
+      kubectl set image deployment/web-deployment ps-web=$(ACR_LOGIN_SERVER)/ps-web:$(Build.BuildId) || kubectl apply -f k8s/web-deployment.yaml
+
+      kubectl apply -f k8s/api-service.yaml
+      kubectl apply -f k8s/web-service.yaml

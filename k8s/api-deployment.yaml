@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-deployment
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ps-api
+  template:
+    metadata:
+      labels:
+        app: ps-api
+    spec:
+      containers:
+      - name: ps-api
+        image: <ACR_NAME>.azurecr.io/ps-api:$(Build.BuildId)
+        ports:
+        - containerPort: 5000
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        env:
+        - name: ConnectionStrings__DefaultConnection
+          valueFrom:
+            secretKeyRef:
+              name: api-secrets
+              key: sql-conn

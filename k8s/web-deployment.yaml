@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-deployment
+  labels:
+    app: social-web
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: social-web
+  template:
+    metadata:
+      labels:
+        app: social-web
+    spec:
+      containers:
+      - name: social-web
+        image: <ACR_NAME>.azurecr.io/ps-web:latest   # <-- replaced by pipeline
+        ports:
+        - containerPort: 80
+        resources:
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+          requests:
+            cpu: "250m"
+            memory: "256Mi"

@@ -1,0 +1,38 @@
+trigger:
+  branches:
+    include:
+      - main
+  paths:
+    include:
+      - infra/terraform/*
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+- group: terraform-secrets   # sql_admin, sql_password, ARM_ creds
+
+steps:
+- task: TerraformInstaller@0
+  displayName: Install Terraform
+  inputs:
+    terraformVersion: 'latest'
+
+- script: |
+    cd infra/terraform
+    terraform init
+  displayName: Terraform Init
+
+- script: |
+    cd infra/terraform
+    terraform plan \
+      -var "sql_admin=$(sql_admin)" \
+      -var "sql_password=$(sql_password)"
+  displayName: Terraform Plan
+
+- script: |
+    cd infra/terraform
+    terraform apply -auto-approve \
+      -var "sql_admin=$(sql_admin)" \
+      -var "sql_password=$(sql_password)"
+  displayName: Terraform Apply

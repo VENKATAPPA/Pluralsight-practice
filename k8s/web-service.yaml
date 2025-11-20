@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-service
+  labels:
+    app: social-web
+spec:
+  type: LoadBalancer
+  selector:
+    app: social-web
+  ports:
+  - port: 80
+    targetPort: 80
