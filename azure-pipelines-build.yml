@@ -4,7 +4,7 @@ trigger:
       - main
 
 pool:
-  vmImage: ubuntu-latest
+  vmImage: local-win-pool
 
 variables:
   acrLoginServer: "pspracticeacr.azurecr.io"
